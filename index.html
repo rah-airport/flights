@@ -74,13 +74,17 @@ input:focus,select:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 
 <main id="home"></main>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
-import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
-import {getFirestore,initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,addDoc,updateDoc,setDoc,onSnapshot,query,orderBy,limit,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
-const app=initializeApp({apiKey:"AIzaSyDM4nhjLkuqLhwiSZnrlviyLFqKqFDY-WA",authDomain:"airport-flights-c77e8.firebaseapp.com",projectId:"airport-flights-c77e8",storageBucket:"airport-flights-c77e8.firebasestorage.app",messagingSenderId:"640202046996",appId:"1:640202046996:web:14e256928390ec80fe3101"});
+import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,updatePassword,createUserWithEmailAndPassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import {getFirestore,initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,addDoc,updateDoc,setDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+const cfg={apiKey:"AIzaSyDM4nhjLkuqLhwiSZnrlviyLFqKqFDY-WA",authDomain:"airport-flights-c77e8.firebaseapp.com",projectId:"airport-flights-c77e8",storageBucket:"airport-flights-c77e8.firebasestorage.app",messagingSenderId:"640202046996",appId:"1:640202046996:web:14e256928390ec80fe3101"};const app=initializeApp(cfg);
 const auth=getAuth(app);let db;try{db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}catch(e){db=getFirestore(app)}
 window.FB={auth:auth,
 signIn:function(p){return signInWithEmailAndPassword(auth,"team@cluster2.com",p)},
 signInEmail:function(e,p){return signInWithEmailAndPassword(auth,e,p)},
+changePassword:function(p){return updatePassword(auth.currentUser,p)},
+addUser:function(email,pw,role){var sa=initializeApp(cfg,"s"+Date.now()),au=getAuth(sa);return createUserWithEmailAndPassword(au,email,pw).then(function(){return signOut(au)}).then(function(){return setDoc(doc(db,"users",email),{email:email,role:role||"user",addedBy:auth.currentUser.email,at:serverTimestamp()})})},
+removeUser:function(email){return deleteDoc(doc(db,"users",email))},
+watchUsers:function(ok,bad){return onSnapshot(collection(db,"users"),function(s){ok(s.docs.map(function(d){var o=d.data();o.id=d.id;return o}))},bad)},
 signOut:function(){return signOut(auth)},
 onAuth:function(cb){return onAuthStateChanged(auth,cb)},
 watchTrips:function(ok,bad){return onSnapshot(query(collection(db,"trips"),orderBy("arrDate","desc")),{includeMetadataChanges:true},function(s){ok(s.docs.map(function(d){var o=d.data();o.id=d.id;o.pending=d.metadata.hasPendingWrites;return o}))},bad)},
@@ -106,7 +110,7 @@ if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)navigator
 (function(){
 var home=document.getElementById('home'),app=document.createElement('div');app.id='app';home.appendChild(app);
 var F=[['airfield','المطار','Airfield','text',0],['flightNo','رقم الرحلة','Flight No.','text',1],['aircraft','رقم الطائرة','Aircraft No.','text',1],['nation','الجنسية','Nationality','text',0],['type','النوع','Type','text',1],['company','الشركة التابعة لها','Company','text',1],['agent','الوكيل','Agent','text',0],['kg','الوزن (كجم)','Weight (kg)','number',0],['arrDate','تاريخ الوصول','Arrival date','date',1],['arrTime','ساعة الوصول','Arrival hour','time',1],['arrFrom','جهة الوصول','Arrival from','text',1],['depDate','تاريخ المغادرة','Departure date','date',1],['depTime','ساعة المغادرة','Departure hour','time',1],['depTo','جهة المغادرة','Departure to','text',1],['paxIn','عدد الركاب القادمين','Passengers arriving','number',1],['paxOut','عدد الركاب المغادرين','Passengers departing','number',1],['crew','عدد الطاقم','Crew count','number',1],['notes','ملاحظات','Notes','text',0]];
-var U={ar:{new:'رحلة جديدة',empty:'ما فيه رحلات بعد. اضغط “رحلة جديدة” وأضف أول رحلة.',sign:'توقيع قائد الطائرة',clear:'مسح',save:'حفظ وقفل الرحلة',cancel:'إلغاء',req:'عبّ كل الخانات اللي عليها نجمة ووقّع.',bad:'وقت السفر قبل وقت الوصول.',signed:'موقّعة',ground:'مدة الإقامة',pax:'الركاب (قادم / مغادر)',from:'من',to:'إلى',note:'نسخة تجريبية: الرحلات تنحفظ على هذا الجهاز بس، لين نربط القائمة المشتركة.'},en:{new:'New flight',empty:'No flights yet. Tap “New flight” to add the first one.',sign:'Pilot signature',clear:'Clear',save:'Save and lock flight',cancel:'Cancel',req:'Fill every field marked with a star and sign.',bad:'Departure is before arrival.',signed:'Signed',ground:'Ground time',pax:'Passengers (in / out)',from:'From',to:'to',note:'Preview: flights are saved on this device only, until we connect the shared list.'}};
+var U={ar:{new:'رحلة جديدة',empty:'ما فيه رحلات بعد. اضغط “رحلة جديدة” وأضف أول رحلة.',sign:'توقيع قائد الطائرة',clear:'مسح',save:'حفظ وقفل الرحلة',cancel:'إلغاء',req:'عبّ كل الخانات اللي عليها نجمة ووقّع.',bad:'وقت السفر قبل وقت الوصول.',signed:'موقّعة',ground:'مدة الوقوف',pax:'الركاب (قادم / مغادر)',from:'من',to:'إلى',note:'نسخة تجريبية: الرحلات تنحفظ على هذا الجهاز بس، لين نربط القائمة المشتركة.'},en:{new:'New flight',empty:'No flights yet. Tap “New flight” to add the first one.',sign:'Pilot signature',clear:'Clear',save:'Save and lock flight',cancel:'Cancel',req:'Fill every field marked with a star and sign.',bad:'Departure is before arrival.',signed:'Signed',ground:'Ground time',pax:'Passengers (in / out)',from:'From',to:'to',note:'Preview: flights are saved on this device only, until we connect the shared list.'}};
 function L(){return document.documentElement.lang==='en'?'en':'ar'}
 function T(k){return U[L()][k]}
 var trips=[],draft=null,who='',showHidden=false,q='',seen={},loaded=false,err=false,box=null,unsub=null;
@@ -119,12 +123,11 @@ function mins(d){return Math.round((new Date(d.depDate+'T'+d.depTime)-new Date(d
 function fmt(m){if(isNaN(m)||m<0)return '—';var a=Math.floor(m/60),b=m%60;return L()==='en'?a+'h '+b+'m':a+' س '+b+' د'}
 function h(tag,at,kids){var e=document.createElement(tag);for(var k in at){if(k==='text')e.textContent=at[k];else e.setAttribute(k,at[k])}(kids||[]).forEach(function(c){e.appendChild(c)});return e}
 function login(){app.textContent='';
-var pw=h('input',{type:'password',autocomplete:'current-password'}),er=h('p',{class:'err'}),go=h('button',{class:'b',type:'button',text:T('enter')}),mgl=h('button',{class:'b g',type:'button',text:T('mgr')}),em=null,hold=h('div'),bx=h('div',{class:'card f'});
+var un=h('input',{type:'text',autocomplete:'username',autocapitalize:'none',autocorrect:'off'}),pw=h('input',{type:'password',autocomplete:'current-password'}),er=h('p',{class:'err'}),go=h('button',{class:'b',type:'button',text:T('enter')}),bx=h('div',{class:'card f'});
 function fail(e){go.disabled=false;er.textContent=e&&e.code==='auth/too-many-requests'?T('wait'):T('wrong')}
-function run(){go.disabled=true;er.textContent='';(em?FB.signInEmail(em.value.trim(),pw.value):FB.signIn(pw.value)).catch(fail)}
-go.onclick=run;pw.onkeydown=function(e){if(e.key==='Enter')run()};
-mgl.onclick=function(){if(em)return;em=h('input',{type:'email',autocomplete:'username'});hold.appendChild(h('label',{text:T('mgrEmail')},[em]));mgl.hidden=true};
-bx.appendChild(hold);bx.appendChild(h('label',{text:T('login')},[pw]));bx.appendChild(er);bx.appendChild(go);bx.appendChild(mgl);app.appendChild(bx)}
+function run(){if(!un.value.trim()||!pw.value){er.textContent=T('wrong');return}go.disabled=true;er.textContent='';FB.signInEmail(toEmail(un.value),pw.value).catch(fail)}
+go.onclick=run;pw.onkeydown=function(e){if(e.key==='Enter')run()};un.onkeydown=function(e){if(e.key==='Enter')pw.focus()};
+bx.appendChild(h('label',{text:T('mgrEmail')},[un]));bx.appendChild(h('label',{text:T('pass')},[pw]));bx.appendChild(er);bx.appendChild(go);app.appendChild(bx)}
 function askName(){app.textContent='';
 var i=h('input',{type:'text'}),b=h('button',{class:'b',type:'button',text:T('nameOk')});
 b.onclick=function(){var v=i.value.trim();if(!v)return;who=v;try{localStorage.setItem('who',v)}catch(e){}noteLogin();goHome()};
@@ -136,18 +139,24 @@ Object.assign(U.en,{newup:'Upcoming flight',up:'Upcoming',complete:'Complete and
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function gt(m){if(isNaN(m)||m<0)return '—';return Math.floor(m/60)+' س '+(m%60)+' د'}
 function pr(html){var f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(f);var d=f.contentWindow.document;d.open();d.write(html);d.close();setTimeout(function(){f.contentWindow.focus();f.contentWindow.print()},600);setTimeout(function(){f.remove()},90000)}
-var PCSS='<style>@page{size:A4;margin:12mm}body{font-family:Tahoma,Arial,sans-serif;color:#111;margin:0}h1{font-size:18px;margin:6px 0}table{width:100%;border-collapse:collapse;font-size:13px}td,th{border:1px solid #888;padding:6px 8px}th{background:#eee}.l{width:26%;background:#f4f4f4}.e{width:26%;background:#f4f4f4;direction:ltr;text-align:left}.hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #123;padding-bottom:8px;margin-bottom:10px}.hd img{height:54px}.sig img{height:70px}.ft{margin-top:14px;font-size:10px;color:#666}</style>';
+var PCSS='<style>@page{size:A4;margin:12mm}body{font-family:Tahoma,Arial,sans-serif;color:#111;margin:0}h1{font-size:18px;margin:6px 0}table{width:100%;border-collapse:collapse;font-size:13px}td,th{border:1px solid #888;padding:6px 8px}th{background:#eee}.l{width:26%;background:#f4f4f4}.e{width:26%;background:#f4f4f4;direction:ltr;text-align:left}.hd{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #123;padding-bottom:8px;margin-bottom:10px}.hd img{height:54px}.sig img{height:70px}td.n{white-space:nowrap;direction:ltr;text-align:center}.ft{margin-top:14px;font-size:10px;color:#666}</style>';
 function tripDoc(d){var r=F.map(function(f){return [f[1],d[f[0]],f[2]]}).filter(function(x){return x[1]!==''&&x[1]!=null});
-r.push(['مدة الإقامة',gt(mins(d)),'Ground time']);
+r.push(['مدة الوقوف',gt(mins(d)),'Ground time']);
 var t=r.map(function(x){return '<tr><td class="l">'+x[0]+'</td><td>'+esc(x[1])+'</td><td class="e">'+x[2]+'</td></tr>'}).join('');
 return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<body><div class="hd"><img src="'+LOGO+'"><div><h1>نموذج ١/ر — بيانات الطائرة</h1><div dir="ltr">Form 1/R — Aircraft data</div></div></div><table>'+t+'</table><table style="margin-top:14px"><tr><td class="l">توقيع قائد الطائرة</td><td class="sig"><img src="'+esc(d.sig)+'"></td><td class="e">Signature of Pilot</td></tr></table><div class="ft">'+esc(d.createdBy||'')+'</div></body></html>'}
 function repDoc(m,a){var tot=0;a.forEach(function(d){tot+=(+d.paxIn||0)+(+d.paxOut||0)});
-var rows=a.map(function(d){return '<tr><td>'+esc(d.flightNo)+'</td><td>'+esc(d.aircraft)+'</td><td>'+esc(d.arrDate+' '+d.arrTime)+'</td><td>'+esc(d.arrFrom)+'</td><td>'+esc(d.depDate+' '+d.depTime)+'</td><td>'+esc(d.depTo)+'</td><td>'+gt(mins(d))+'</td><td>'+esc(d.paxIn)+' / '+esc(d.paxOut)+'</td><td>'+esc(d.crew)+'</td><td>'+esc(d.createdBy)+'</td></tr>'}).join('');
-return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<body><div class="hd"><img src="'+LOGO+'"><div><h1>تقرير الرحلات الخاصة — '+esc(m)+'</h1><div>عدد الرحلات: '+a.length+' — مجموع الركاب: '+tot+'</div></div></div><table><tr><th>الرحلة</th><th>الطائرة</th><th>الوصول</th><th>من</th><th>المغادرة</th><th>إلى</th><th>الإقامة</th><th>الركاب</th><th>الطاقم</th><th>أضافها</th></tr>'+rows+'</table></body></html>'}
+var rows=a.map(function(d){return '<tr><td>'+esc(d.flightNo)+'</td><td>'+esc(d.aircraft)+'</td><td>'+esc(d.type)+'</td><td>'+esc(d.company)+'</td><td class="n">'+esc(d.arrDate+' '+d.arrTime)+'</td><td>'+esc(d.arrFrom)+'</td><td class="n">'+esc(d.depDate+' '+d.depTime)+'</td><td>'+esc(d.depTo)+'</td><td>'+gt(mins(d))+'</td><td>'+esc(d.paxIn)+' / '+esc(d.paxOut)+'</td><td>'+esc(d.crew)+'</td><td>'+esc(d.createdBy)+'</td></tr>'}).join('');
+return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<style>@page{size:A4 landscape}table{font-size:11px}td,th{padding:5px 6px}</style><body><div class="hd"><img src="'+LOGO+'"><div><h1>تقرير الرحلات الخاصة — '+esc(m)+'</h1><div>عدد الرحلات: '+a.length+' — مجموع الركاب: '+tot+'</div></div></div><table><tr><th>رقم الرحلة</th><th>تسجيل الطائرة</th><th>نوع الطائرة</th><th>الشركة التابعة لها</th><th>الوصول</th><th>من</th><th>المغادرة</th><th>إلى</th><th>مدة الوقوف</th><th>الركاب</th><th>الطاقم</th><th>أضافها</th></tr>'+rows+'</table></body></html>'}
 function top1(a,k){var c={},b='',n=0;a.forEach(function(d){var v=d[k];if(!v)return;c[v]=(c[v]||0)+1;if(c[v]>n){n=c[v];b=v}});return b?b+' ('+n+')':'—'}
-var view='list',todayBox=null,ul=null,logged=false,MG=['mgr@cluster2.com'];
-Object.assign(U.ar,{log:'سجل الرحلات',backhome:'رجوع',edit:'تعديل',editedby:'عُدّلت بواسطة',crew:'الطاقم',mgr:'دخول المدير',mgrEmail:'إيميل المدير'});
-Object.assign(U.en,{log:'Flights log',backhome:'Back',edit:'Edit',editedby:'Edited by',crew:'Crew',mgr:'Manager sign-in',mgrEmail:'Manager email'});
+var view='list',todayBox=null,ul=null,logged=false,MG=['fahad@cluster2.com','sanea@cluster2.com'],noacc=false;
+Object.assign(U.ar,{log:'سجل الرحلات',backhome:'رجوع',edit:'تعديل',editedby:'عُدّلت بواسطة',crew:'الطاقم',mgr:'دخول المدير',mgrEmail:'اسم المستخدم'});
+Object.assign(U.en,{log:'Flights log',backhome:'Back',edit:'Edit',editedby:'Edited by',crew:'Crew',mgr:'Manager sign-in',mgrEmail:'Username'});
+Object.assign(U.ar,{wrong:'اسم المستخدم أو الرقم السري غلط.',chpw:'تغيير الرقم السري',as:'مسجّل باسم',newpw:'الرقم السري الجديد',newpw2:'أعد كتابته',pwshort:'6 خانات على الأقل.',pwdiff:'الرقمان غير متطابقين.',pwok:'تم تغيير الرقم السري.',pwrel:'سجّل خروج ثم ادخل من جديد وجرّب مرة ثانية.'});
+Object.assign(U.en,{wrong:'Wrong username or password.',chpw:'Change password',as:'Signed in as',newpw:'New password',newpw2:'Repeat it',pwshort:'At least 6 characters.',pwdiff:'The passwords do not match.',pwok:'Password changed.',pwrel:'Sign out, sign in again and retry.'});
+Object.assign(U.ar,{users:'إدارة المستخدمين',adduser:'إضافة مستخدم',temppw:'رقم سري مؤقت (6 خانات أو أكثر)',badname:'اسم المستخدم: حروف إنجليزية وأرقام فقط (من 3 إلى 30).',added:'تمت إضافة',taken:'اسم المستخدم محجوز، اختر اسماً ثانياً.',admin:'أدمن',emp:'موظف',revoke:'إيقاف الدخول',sureRevoke:'تبي توقف دخول هذا المستخدم؟',signupoff:'الإنشاء الذاتي مقفول في Firebase، فعّله من الإعدادات.',noaccess:'ما عندك صلاحية. تواصل مع الأدمن.'});
+Object.assign(U.en,{users:'Manage users',adduser:'Add user',temppw:'Temporary password (6+ characters)',badname:'Username: English letters and digits only (3 to 30).',added:'Added',taken:'That username is taken, choose another.',admin:'Admin',emp:'Employee',revoke:'Revoke access',sureRevoke:'Revoke this user\'s access?',signupoff:'Self sign-up is disabled in Firebase, enable it in settings.',noaccess:'You do not have access. Contact the admin.'});
+function isAdminEmail(e){return MG.indexOf(String(e||'').toLowerCase())>=0}
+function toEmail(v){v=String(v).trim().toLowerCase();return v.indexOf('@')>=0?v:v+'@cluster2.com'}
 function isMgr(){var u=window.FB&&FB.auth.currentUser;return !!(u&&u.email&&MG.indexOf(u.email.toLowerCase())>=0)}
 Object.assign(U.ar,{logs:'من دخل',nolog:'ما فيه دخول مسجّل بعد.',hiddenby:'أخفاها'});
 Object.assign(U.en,{logs:'Who signed in',nolog:'No sign-ins yet.',hiddenby:'Hidden by'});
@@ -175,7 +184,28 @@ var b=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'}),u=U
 l.href=u;l.download='flights-'+m+'.csv';document.body.appendChild(l);l.click();setTimeout(function(){l.remove();URL.revokeObjectURL(u)},2000)}
 function goHome(){draft=null;box=null;view='home';app.textContent='';
 var g=h('div',{class:'bigs'}),a=h('button',{class:'big pri',type:'button',text:T('new')}),b=h('button',{class:'big',type:'button',text:T('log')});
-a.onclick=function(){draft={arrDate:today(),depDate:today(),sig:''};form()};b.onclick=list;g.appendChild(a);g.appendChild(b);app.appendChild(g)}
+a.onclick=function(){draft={arrDate:today(),depDate:today(),sig:''};form()};b.onclick=list;g.appendChild(a);g.appendChild(b);if(isMgr()){var u3=h('button',{class:'big',type:'button',text:T('users')});u3.onclick=usersView;g.appendChild(u3)}app.appendChild(g);
+var r3=h('div',{class:'row'}),pb=h('button',{class:'b g',type:'button',text:T('chpw')});pb.onclick=pwView;r3.appendChild(pb);r3.appendChild(h('span',{class:'small',text:T('as')+': '+who}));app.appendChild(r3)}
+function usersView(){draft=null;box=null;view='users';app.textContent='';
+var bk=h('button',{class:'b g',type:'button',text:T('backhome')});app.appendChild(bk);
+var un=h('input',{type:'text',autocomplete:'off',autocapitalize:'none',autocorrect:'off'}),pw=h('input',{type:'text',autocomplete:'off'}),er=h('p',{class:'err'}),add=h('button',{class:'b',type:'button',text:T('adduser')}),bx=h('div',{class:'card f'});
+bx.appendChild(h('div',{class:'sl',text:T('adduser')}));bx.appendChild(h('label',{text:T('mgrEmail')},[un]));bx.appendChild(h('label',{text:T('temppw')},[pw]));bx.appendChild(er);bx.appendChild(add);app.appendChild(bx);
+add.onclick=function(){var u=un.value.trim().toLowerCase();er.style.color='';er.textContent='';
+if(!/^[a-z0-9._-]{3,30}$/.test(u)){er.textContent=T('badname');return}
+if(pw.value.length<6){er.textContent=T('pwshort');return}
+add.disabled=true;
+FB.addUser(toEmail(u),pw.value,'user').then(function(){er.style.color='#1b7f4a';er.textContent=T('added')+': '+u;un.value='';pw.value='';add.disabled=false},function(e){add.disabled=false;var c=e&&e.code;er.textContent=c==='auth/email-already-in-use'?T('taken'):c==='auth/weak-password'?T('pwshort'):c==='auth/admin-restricted-operation'?T('signupoff'):T('offline')})};
+var lst=h('div',{class:'col'});app.appendChild(lst);
+ul=FB.watchUsers(function(a){lst.textContent='';a.forEach(function(d){var c=h('div',{class:'trip'});c.appendChild(h('b',{text:(d.email||'').split('@')[0]}));
+c.appendChild(h('div',{class:'small',text:(d.role==='admin'?T('admin'):T('emp'))+(d.addedBy?'  -  '+T('by')+': '+d.addedBy.split('@')[0]:'')}));
+var rm=h('button',{class:'b g',type:'button',text:T('revoke')});rm.onclick=function(){if(confirm(T('sureRevoke')))FB.removeUser(d.email).catch(function(){alert(T('offline'))})};c.appendChild(rm);lst.appendChild(c)})},function(){});
+bk.onclick=function(){if(ul){ul();ul=null}goHome()}}
+function pwView(){draft=null;box=null;view='pw';app.textContent='';
+var a=h('input',{type:'password',autocomplete:'new-password'}),b=h('input',{type:'password',autocomplete:'new-password'}),er=h('p',{class:'err'}),ok=h('button',{class:'b',type:'button',text:T('nameOk')}),bk=h('button',{class:'b g',type:'button',text:T('backhome')}),bx=h('div',{class:'card f'});
+bk.onclick=goHome;
+ok.onclick=function(){er.style.color='';er.textContent='';if(a.value.length<6){er.textContent=T('pwshort');return}if(a.value!==b.value){er.textContent=T('pwdiff');return}ok.disabled=true;
+FB.changePassword(a.value).then(function(){er.style.color='#1b7f4a';er.textContent=T('pwok');ok.disabled=false;a.value='';b.value=''},function(e){ok.disabled=false;er.textContent=e&&e.code==='auth/requires-recent-login'?T('pwrel'):T('offline')})};
+app.appendChild(bk);bx.appendChild(h('label',{text:T('newpw')},[a]));bx.appendChild(h('label',{text:T('newpw2')},[b]));bx.appendChild(er);bx.appendChild(ok);app.appendChild(bx)}
 function list(){draft=null;view='list';app.textContent='';
 app.appendChild(h('div',{class:'sl',text:T('log')}));
 var tp=h('div',{class:'row'}),bk=h('button',{class:'b g',type:'button',text:T('backhome')}),nu=h('button',{class:'b',type:'button',text:T('newup')}),ab=h('button',{class:'b g',type:'button',text:T('acs')}),lgb=h('button',{class:'b g',type:'button',text:T('logs')});
@@ -227,7 +257,7 @@ c.appendChild(bt);
 c.onclick=function(){if(!seen[d.id]){seen[d.id]=1;saveSeen();paint()}};
 return c}
 function paint(){if(!box)return;box.textContent='';
-if(!loaded){box.appendChild(h('div',{class:'card',text:err?T('offline'):T('loading')}));return}
+if(!loaded){box.appendChild(h('div',{class:'card',text:err?(noacc?T('noaccess'):T('offline')):T('loading')}));return}
 var n=q.trim().toLowerCase(),m=month||'',cm=m||today().slice(0,7),now=Date.now(),td=today();
 var items=trips.filter(function(d){if(d.hidden)return false;var t=when(d).getTime();return d.arrDate===td||d.depDate===td||(d.signed===false&&t>=now-3600000&&t<=now+86400000)}).sort(function(a,b){return when(a)-when(b)});
 if(todayBox){todayBox.textContent='';todayBox.appendChild(h('b',{text:T('today')}));
@@ -281,8 +311,8 @@ sv.onclick=function(){var e=chk(true);if(e){msg.textContent=e;return}sv.disabled
 document.getElementById('lang').addEventListener('click',function(){if(draft)form();else if(!(window.FB&&FB.auth.currentUser))login();else if(!who)askName();else goHome()});
 function start(){FB.onAuth(function(u){var ob=document.getElementById('out');if(ob)ob.hidden=!u;if(unsub){unsub();unsub=null}
 if(!u){trips=[];loaded=false;box=null;logged=false;login();return}
-loaded=false;err=false;if(!who)askName();else{noteLogin();goHome()}
-if(unsub2){unsub2();unsub2=null}unsub2=FB.watchAircraft(function(a){ac=a});unsub=FB.watchTrips(function(a){trips=a;loaded=true;err=false;paint()},function(){err=true;paint()})})}
+loaded=false;err=false;who=(u.email||'').split('@')[0];noteLogin();goHome()
+if(unsub2){unsub2();unsub2=null}unsub2=FB.watchAircraft(function(a){ac=a});unsub=FB.watchTrips(function(a){trips=a;loaded=true;err=false;paint()},function(e){err=true;noacc=!!(e&&e.code==='permission-denied');paint()})})}
 (function(){var ob=document.getElementById('out');if(ob)ob.onclick=function(){FB.signOut()}})();
 if(window.FB)start();else window.addEventListener('fb-ready',start);
 setInterval(function(){if(view==='list')paint()},60000);
