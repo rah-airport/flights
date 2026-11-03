@@ -75,7 +75,7 @@ input:focus,select:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
 import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,updatePassword,createUserWithEmailAndPassword} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
-import {getFirestore,initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,addDoc,updateDoc,setDoc,deleteDoc,onSnapshot,query,orderBy,limit,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+import {getFirestore,initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,addDoc,updateDoc,setDoc,deleteDoc,getDocs,where,Timestamp,onSnapshot,query,orderBy,limit,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 const cfg={apiKey:"AIzaSyDM4nhjLkuqLhwiSZnrlviyLFqKqFDY-WA",authDomain:"airport-flights-c77e8.firebaseapp.com",projectId:"airport-flights-c77e8",storageBucket:"airport-flights-c77e8.firebasestorage.app",messagingSenderId:"640202046996",appId:"1:640202046996:web:14e256928390ec80fe3101"};const app=initializeApp(cfg);
 const auth=getAuth(app);let db;try{db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}catch(e){db=getFirestore(app)}
 window.FB={auth:auth,
@@ -83,6 +83,7 @@ signIn:function(p){return signInWithEmailAndPassword(auth,"team@cluster2.com",p)
 signInEmail:function(e,p){return signInWithEmailAndPassword(auth,e,p)},
 changePassword:function(p){return updatePassword(auth.currentUser,p)},
 addUser:function(email,pw,role){var sa=initializeApp(cfg,"s"+Date.now()),au=getAuth(sa);return createUserWithEmailAndPassword(au,email,pw).then(function(){return signOut(au)}).then(function(){return setDoc(doc(db,"users",email),{email:email,role:role||"user",addedBy:auth.currentUser.email,at:serverTimestamp()})})},
+deleteTrip:function(id){return deleteDoc(doc(db,"trips",id))},
 removeUser:function(email){return deleteDoc(doc(db,"users",email))},
 watchUsers:function(ok,bad){return onSnapshot(collection(db,"users"),function(s){ok(s.docs.map(function(d){var o=d.data();o.id=d.id;return o}))},bad)},
 signOut:function(){return signOut(auth)},
@@ -94,7 +95,8 @@ updateTrip:function(id,o){o.updatedAt=serverTimestamp();return updateDoc(doc(db,
 watchAircraft:function(ok){return onSnapshot(collection(db,"aircraft"),function(s){ok(s.docs.map(function(d){var o=d.data();o.id=d.id;return o}))},function(){})},
 saveAircraft:function(code,o){return setDoc(doc(db,"aircraft",code),o,{merge:true})},
 logLogin:function(name,dev){return addDoc(collection(db,"logins"),{name:name,device:dev,at:serverTimestamp()})},
-watchLogins:function(ok,bad){return onSnapshot(query(collection(db,"logins"),orderBy("at","desc"),limit(60)),function(s){ok(s.docs.map(function(d){var o=d.data({serverTimestamps:"estimate"});o.id=d.id;o.at=o.at&&o.at.toMillis?o.at.toMillis():0;return o}))},bad)}};
+watchLogins:function(ok,bad){return onSnapshot(query(collection(db,"logins"),orderBy("at","desc"),limit(60)),function(s){ok(s.docs.map(function(d){var o=d.data({serverTimestamps:"estimate"});o.id=d.id;o.at=o.at&&o.at.toMillis?o.at.toMillis():0;return o}))},bad)},
+getLogins:function(y,mo){var a=Timestamp.fromDate(new Date(y,mo-1,1)),b=Timestamp.fromDate(new Date(y,mo,1));return getDocs(query(collection(db,"logins"),where("at",">=",a),where("at","<",b),orderBy("at","desc"),limit(1000))).then(function(s){return s.docs.map(function(d){var o=d.data();o.at=o.at&&o.at.toMillis?o.at.toMillis():0;return o})})}};
 window.dispatchEvent(new Event("fb-ready"));
 </script>
 <script>
@@ -110,14 +112,14 @@ if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)navigator
 (function(){
 var home=document.getElementById('home'),app=document.createElement('div');app.id='app';home.appendChild(app);
 var F=[['airfield','المطار','Airfield','text',0],['flightNo','رقم الرحلة','Flight No.','text',1],['aircraft','رقم الطائرة','Aircraft No.','text',1],['nation','الجنسية','Nationality','text',0],['type','النوع','Type','text',1],['company','الشركة التابعة لها','Company','text',1],['agent','الوكيل','Agent','text',0],['kg','الوزن (كجم)','Weight (kg)','number',0],['arrDate','تاريخ الوصول','Arrival date','date',1],['arrTime','ساعة الوصول','Arrival hour','time',1],['arrFrom','جهة الوصول','Arrival from','text',1],['depDate','تاريخ المغادرة','Departure date','date',1],['depTime','ساعة المغادرة','Departure hour','time',1],['depTo','جهة المغادرة','Departure to','text',1],['paxIn','عدد الركاب القادمين','Passengers arriving','number',1],['paxOut','عدد الركاب المغادرين','Passengers departing','number',1],['crew','عدد الطاقم','Crew count','number',1],['notes','ملاحظات','Notes','text',0]];
-var U={ar:{new:'رحلة جديدة',empty:'ما فيه رحلات بعد. اضغط “رحلة جديدة” وأضف أول رحلة.',sign:'توقيع قائد الطائرة',clear:'مسح',save:'حفظ وقفل الرحلة',cancel:'إلغاء',req:'عبّ كل الخانات اللي عليها نجمة ووقّع.',bad:'وقت السفر قبل وقت الوصول.',signed:'موقّعة',ground:'مدة الوقوف',pax:'الركاب (قادم / مغادر)',from:'من',to:'إلى',note:'نسخة تجريبية: الرحلات تنحفظ على هذا الجهاز بس، لين نربط القائمة المشتركة.'},en:{new:'New flight',empty:'No flights yet. Tap “New flight” to add the first one.',sign:'Pilot signature',clear:'Clear',save:'Save and lock flight',cancel:'Cancel',req:'Fill every field marked with a star and sign.',bad:'Departure is before arrival.',signed:'Signed',ground:'Ground time',pax:'Passengers (in / out)',from:'From',to:'to',note:'Preview: flights are saved on this device only, until we connect the shared list.'}};
+var U={ar:{new:'رحلة جديدة',empty:'لا توجد رحلات بعد. اضغط «رحلة جديدة» وأضف أول رحلة.',sign:'توقيع قائد الطائرة',clear:'مسح',save:'حفظ وقفل الرحلة',cancel:'إلغاء',req:'عبّئ جميع الخانات المعلّمة بنجمة ثم وقّع.',bad:'وقت المغادرة قبل وقت الوصول.',signed:'موقّعة',ground:'مدة الوقوف',pax:'الركاب (قادم / مغادر)',from:'من',to:'إلى',note:'نسخة تجريبية: الرحلات تنحفظ على هذا الجهاز بس، لين نربط القائمة المشتركة.'},en:{new:'New flight',empty:'No flights yet. Tap “New flight” to add the first one.',sign:'Pilot signature',clear:'Clear',save:'Save and lock flight',cancel:'Cancel',req:'Fill every field marked with a star and sign.',bad:'Departure is before arrival.',signed:'Signed',ground:'Ground time',pax:'Passengers (in / out)',from:'From',to:'to',note:'Preview: flights are saved on this device only, until we connect the shared list.'}};
 function L(){return document.documentElement.lang==='en'?'en':'ar'}
 function T(k){return U[L()][k]}
 var trips=[],draft=null,who='',showHidden=false,q='',seen={},loaded=false,err=false,box=null,unsub=null;
 try{who=localStorage.getItem('who')||'';seen=JSON.parse(localStorage.getItem('seen')||'{}')}catch(e){}
 function saveSeen(){try{localStorage.setItem('seen',JSON.stringify(seen))}catch(e){}}
-Object.assign(U.ar,{login:'اكتب الرقم السري',pass:'الرقم السري',enter:'دخول',wrong:'الرقم السري غلط.',wait:'محاولات كثيرة، انتظر شوي وجرّب.',name:'اكتب اسمك',nameOk:'حفظ',exit:'خروج',by:'أضافها',hide:'إخفاء',unhide:'استرجاع',sure:'متأكد تبي تخفي هذي الرحلة؟ تقدر ترجعها بعدين.',newb:'جديد',search:'بحث برقم الرحلة أو الطائرة أو الوجهة',showh:'عرض المخفية',hideh:'رجوع للرحلات',loading:'جاري التحميل...',offline:'ما قدرت أتصل بالقاعدة. تأكد من الإنترنت.'});
-Object.assign(U.en,{login:'Enter the password',pass:'Password',enter:'Enter',wrong:'Wrong password.',wait:'Too many attempts, wait a moment.',name:'Your name',nameOk:'Save',exit:'Sign out',by:'Added by',hide:'Hide',unhide:'Restore',sure:'Hide this flight? You can restore it later.',newb:'New',search:'Search flight, aircraft or destination',showh:'Show hidden',hideh:'Back to flights',loading:'Loading...',offline:'Could not reach the database. Check your connection.'});
+Object.assign(U.ar,{login:'اكتب الرقم السري',pass:'الرقم السري',enter:'دخول',wrong:'الرقم السري غير صحيح.',wait:'محاولات كثيرة، انتظر قليلاً ثم حاول مجدداً.',name:'اكتب اسمك',nameOk:'حفظ',exit:'خروج',by:'إضافة',hide:'حذف',unhide:'استرجاع',sure:'هل تريد حذف هذه الرحلة؟ لا يمكن التراجع عن الحذف.',newb:'جديد',search:'بحث برقم الرحلة أو الطائرة أو الوجهة',showh:'عرض المخفية',hideh:'رجوع للرحلات',loading:'جاري التحميل...',offline:'تعذّر الاتصال بقاعدة البيانات. تأكد من الاتصال بالإنترنت.'});
+Object.assign(U.en,{login:'Enter the password',pass:'Password',enter:'Enter',wrong:'Wrong password.',wait:'Too many attempts, wait a moment.',name:'Your name',nameOk:'Save',exit:'Sign out',by:'Added by',hide:'Delete',unhide:'Restore',sure:'Delete this flight? This cannot be undone.',newb:'New',search:'Search flight, aircraft or destination',showh:'Show hidden',hideh:'Back to flights',loading:'Loading...',offline:'Could not reach the database. Check your connection.'});
 function today(){return new Date().toISOString().slice(0,10)}
 function mins(d){return Math.round((new Date(d.depDate+'T'+d.depTime)-new Date(d.arrDate+'T'+d.arrTime))/60000)}
 function fmt(m){if(isNaN(m)||m<0)return '—';var a=Math.floor(m/60),b=m%60;return L()==='en'?a+'h '+b+'m':a+' س '+b+' د'}
@@ -144,21 +146,25 @@ function tripDoc(d){var r=F.map(function(f){return [f[1],d[f[0]],f[2]]}).filter(
 r.push(['مدة الوقوف',gt(mins(d)),'Ground time']);
 var t=r.map(function(x){return '<tr><td class="l">'+x[0]+'</td><td>'+esc(x[1])+'</td><td class="e">'+x[2]+'</td></tr>'}).join('');
 return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<body><div class="hd"><img src="'+LOGO+'"><div><h1>نموذج ١/ر — بيانات الطائرة</h1><div dir="ltr">Form 1/R — Aircraft data</div></div></div><table>'+t+'</table><table style="margin-top:14px"><tr><td class="l">توقيع قائد الطائرة</td><td class="sig"><img src="'+esc(d.sig)+'"></td><td class="e">Signature of Pilot</td></tr></table><div class="ft">'+esc(d.createdBy||'')+'</div></body></html>'}
-function repDoc(m,a){var tot=0;a.forEach(function(d){tot+=(+d.paxIn||0)+(+d.paxOut||0)});
+function loginSec(lg){if(!lg)return '';var c={};lg.forEach(function(d){c[d.name]=(c[d.name]||0)+1});
+var sum=Object.keys(c).map(function(k){return esc(k)+' ('+c[k]+')'}).join(' - ');
+var rows=lg.map(function(d){return '<tr><td>'+esc(d.name)+'</td><td class="n">'+esc(ts(d.at))+'</td><td>'+esc(d.device)+'</td></tr>'}).join('');
+return '<div style="page-break-before:always"></div><h1>سجل الدخول</h1><div style="margin-bottom:8px">عدد مرات الدخول: '+lg.length+(sum?' — '+sum:'')+'</div><table><tr><th>المستخدم</th><th>التاريخ والوقت</th><th>الجهاز</th></tr>'+rows+'</table>'}
+function repDoc(m,a,lg){var tot=0;a.forEach(function(d){tot+=(+d.paxIn||0)+(+d.paxOut||0)});
 var rows=a.map(function(d){return '<tr><td>'+esc(d.flightNo)+'</td><td>'+esc(d.aircraft)+'</td><td>'+esc(d.type)+'</td><td>'+esc(d.company)+'</td><td class="n">'+esc(d.arrDate+' '+d.arrTime)+'</td><td>'+esc(d.arrFrom)+'</td><td class="n">'+esc(d.depDate+' '+d.depTime)+'</td><td>'+esc(d.depTo)+'</td><td>'+gt(mins(d))+'</td><td>'+esc(d.paxIn)+' / '+esc(d.paxOut)+'</td><td>'+esc(d.crew)+'</td><td>'+esc(d.createdBy)+'</td></tr>'}).join('');
-return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<style>@page{size:A4 landscape}table{font-size:11px}td,th{padding:5px 6px}</style><body><div class="hd"><img src="'+LOGO+'"><div><h1>تقرير الرحلات الخاصة — '+esc(m)+'</h1><div>عدد الرحلات: '+a.length+' — مجموع الركاب: '+tot+'</div></div></div><table><tr><th>رقم الرحلة</th><th>تسجيل الطائرة</th><th>نوع الطائرة</th><th>الشركة التابعة لها</th><th>الوصول</th><th>من</th><th>المغادرة</th><th>إلى</th><th>مدة الوقوف</th><th>الركاب</th><th>الطاقم</th><th>أضافها</th></tr>'+rows+'</table></body></html>'}
+return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<style>@page{size:A4 landscape}table{font-size:11px}td,th{padding:5px 6px}</style><body><div class="hd"><img src="'+LOGO+'"><div><h1>تقرير الرحلات الخاصة — '+esc(m)+'</h1><div>عدد الرحلات: '+a.length+' — مجموع الركاب: '+tot+'</div></div></div><table><tr><th>رقم الرحلة</th><th>تسجيل الطائرة</th><th>نوع الطائرة</th><th>الشركة التابعة لها</th><th>الوصول</th><th>من</th><th>المغادرة</th><th>إلى</th><th>مدة الوقوف</th><th>الركاب</th><th>الطاقم</th><th>إضافة</th></tr>'+rows+'</table>'+loginSec(lg)+'</body></html>'}
 function top1(a,k){var c={},b='',n=0;a.forEach(function(d){var v=d[k];if(!v)return;c[v]=(c[v]||0)+1;if(c[v]>n){n=c[v];b=v}});return b?b+' ('+n+')':'—'}
-var view='list',todayBox=null,ul=null,logged=false,MG=['fahad@cluster2.com','sanea@cluster2.com'],noacc=false;
+var view='list',todayBox=null,ul=null,logged=false,MG=['fahad@cluster2.com','sanea@cluster2.com','abdullah@cluster2.com'],noacc=false;
 Object.assign(U.ar,{log:'سجل الرحلات',backhome:'رجوع',edit:'تعديل',editedby:'عُدّلت بواسطة',crew:'الطاقم',mgr:'دخول المدير',mgrEmail:'اسم المستخدم'});
 Object.assign(U.en,{log:'Flights log',backhome:'Back',edit:'Edit',editedby:'Edited by',crew:'Crew',mgr:'Manager sign-in',mgrEmail:'Username'});
-Object.assign(U.ar,{wrong:'اسم المستخدم أو الرقم السري غلط.',chpw:'تغيير الرقم السري',as:'مسجّل باسم',newpw:'الرقم السري الجديد',newpw2:'أعد كتابته',pwshort:'6 خانات على الأقل.',pwdiff:'الرقمان غير متطابقين.',pwok:'تم تغيير الرقم السري.',pwrel:'سجّل خروج ثم ادخل من جديد وجرّب مرة ثانية.'});
+Object.assign(U.ar,{wrong:'اسم المستخدم أو الرقم السري غير صحيح.',chpw:'تغيير الرقم السري',as:'مسجّل باسم',newpw:'الرقم السري الجديد',newpw2:'أعد كتابته',pwshort:'6 خانات على الأقل.',pwdiff:'الرقمان غير متطابقين.',pwok:'تم تغيير الرقم السري.',pwrel:'سجّل الخروج ثم ادخل من جديد وحاول مرة أخرى.'});
 Object.assign(U.en,{wrong:'Wrong username or password.',chpw:'Change password',as:'Signed in as',newpw:'New password',newpw2:'Repeat it',pwshort:'At least 6 characters.',pwdiff:'The passwords do not match.',pwok:'Password changed.',pwrel:'Sign out, sign in again and retry.'});
-Object.assign(U.ar,{users:'إدارة المستخدمين',adduser:'إضافة مستخدم',temppw:'رقم سري مؤقت (6 خانات أو أكثر)',badname:'اسم المستخدم: حروف إنجليزية وأرقام فقط (من 3 إلى 30).',added:'تمت إضافة',taken:'اسم المستخدم محجوز، اختر اسماً ثانياً.',admin:'أدمن',emp:'موظف',revoke:'إيقاف الدخول',sureRevoke:'تبي توقف دخول هذا المستخدم؟',signupoff:'الإنشاء الذاتي مقفول في Firebase، فعّله من الإعدادات.',noaccess:'ما عندك صلاحية. تواصل مع الأدمن.'});
+Object.assign(U.ar,{users:'إدارة المستخدمين',adduser:'إضافة مستخدم',temppw:'رقم سري مؤقت (6 خانات أو أكثر)',badname:'اسم المستخدم: حروف إنجليزية وأرقام فقط (من 3 إلى 30).',added:'تمت إضافة',taken:'اسم المستخدم محجوز، اختر اسماً آخر.',admin:'أدمن',emp:'موظف',revoke:'إيقاف الدخول',sureRevoke:'هل تريد إيقاف دخول هذا المستخدم؟',signupoff:'الإنشاء الذاتي معطّل في Firebase، فعّله من الإعدادات.',noaccess:'ليست لديك صلاحية. تواصل مع الأدمن.'});
 Object.assign(U.en,{users:'Manage users',adduser:'Add user',temppw:'Temporary password (6+ characters)',badname:'Username: English letters and digits only (3 to 30).',added:'Added',taken:'That username is taken, choose another.',admin:'Admin',emp:'Employee',revoke:'Revoke access',sureRevoke:'Revoke this user\'s access?',signupoff:'Self sign-up is disabled in Firebase, enable it in settings.',noaccess:'You do not have access. Contact the admin.'});
 function isAdminEmail(e){return MG.indexOf(String(e||'').toLowerCase())>=0}
 function toEmail(v){v=String(v).trim().toLowerCase();return v.indexOf('@')>=0?v:v+'@cluster2.com'}
 function isMgr(){var u=window.FB&&FB.auth.currentUser;return !!(u&&u.email&&MG.indexOf(u.email.toLowerCase())>=0)}
-Object.assign(U.ar,{logs:'من دخل',nolog:'ما فيه دخول مسجّل بعد.',hiddenby:'أخفاها'});
+Object.assign(U.ar,{logs:'من دخل',nolog:'لا يوجد دخول مسجّل بعد.',hiddenby:'أخفاها'});
 Object.assign(U.en,{logs:'Who signed in',nolog:'No sign-ins yet.',hiddenby:'Hidden by'});
 function dev(){var u=navigator.userAgent;if(/Mac/.test(u)&&navigator.maxTouchPoints>1)return 'iPad';return /iPad/.test(u)?'iPad':/iPhone/.test(u)?'iPhone':/Android/.test(u)?'Android':/Windows/.test(u)?'Windows':/Mac/.test(u)?'Mac':'—'}
 function ts(ms){if(!ms)return '';var d=new Date(ms);return d.toLocaleDateString('en-CA')+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
@@ -169,7 +175,7 @@ bk.onclick=function(){if(ul){ul();ul=null}list()};app.appendChild(bk);app.append
 cont.appendChild(h('div',{class:'card',text:T('loading')}));
 ul=FB.watchLogins(function(a){cont.textContent='';if(!a.length)cont.appendChild(h('div',{class:'card',text:T('nolog')}));
 a.forEach(function(d){var c=h('div',{class:'trip'});c.appendChild(h('b',{text:d.name||'—'}));c.appendChild(h('div',{class:'small',text:ts(d.at)+'  -  '+(d.device||'')}));cont.appendChild(c)})},function(){cont.textContent='';cont.appendChild(h('div',{class:'card',text:T('offline')}))})}
-Object.assign(U.ar,{rep:'كرّر',today:'اليوم',nonext:'ما فيه رحلات اليوم.',after:'بعد',late:'متأخرة',hand:'تسليم للكابتن',back:'رجوع',confirm:'تأكيد وتوقيع',now:'الآن',share:'مشاركة',csv:'تصدير Excel',acs:'الطائرات',times:'رحلة',last:'آخر رحلة',pending:'لم تُرسل بعد',noac:'ما فيه طائرات بعد.',capnote:'راجع بيانات الرحلة ثم وقّع'});
+Object.assign(U.ar,{rep:'كرّر',today:'اليوم',nonext:'لا توجد رحلات اليوم.',after:'بعد',late:'متأخرة',hand:'تسليم للكابتن',back:'رجوع',confirm:'تأكيد وتوقيع',now:'الآن',share:'مشاركة',csv:'تصدير Excel',acs:'الطائرات',times:'رحلة',last:'آخر رحلة',pending:'لم تُرسل بعد',noac:'لا توجد طائرات بعد.',capnote:'راجع بيانات الرحلة ثم وقّع'});
 Object.assign(U.en,{rep:'Repeat',today:'Today',nonext:'No flights today.',after:'in',late:'overdue',hand:'Hand to captain',back:'Back',confirm:'Confirm and sign',now:'Now',share:'Share',csv:'Export Excel',acs:'Aircraft',times:'flights',last:'Last flight',pending:'Not sent yet',noac:'No aircraft yet.',capnote:'Review the flight details, then sign'});
 function nowT(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 function when(d){return new Date((d.arrDate||'')+'T'+(d.arrTime||'00:00'))}
@@ -208,16 +214,16 @@ FB.changePassword(a.value).then(function(){er.style.color='#1b7f4a';er.textConte
 app.appendChild(bk);bx.appendChild(h('label',{text:T('newpw')},[a]));bx.appendChild(h('label',{text:T('newpw2')},[b]));bx.appendChild(er);bx.appendChild(ok);app.appendChild(bx)}
 function list(){draft=null;view='list';app.textContent='';
 app.appendChild(h('div',{class:'sl',text:T('log')}));
-var tp=h('div',{class:'row'}),bk=h('button',{class:'b g',type:'button',text:T('backhome')}),nu=h('button',{class:'b',type:'button',text:T('newup')}),ab=h('button',{class:'b g',type:'button',text:T('acs')}),lgb=h('button',{class:'b g',type:'button',text:T('logs')});
-bk.onclick=goHome;nu.onclick=function(){draft={arrDate:today(),depDate:today(),up:true};form()};ab.onclick=acView;lgb.onclick=logsView;
-tp.appendChild(bk);tp.appendChild(nu);tp.appendChild(ab);tp.appendChild(lgb);app.appendChild(tp);
+var tp=h('div',{class:'row'}),bk=h('button',{class:'b g',type:'button',text:T('backhome')}),nu=h('button',{class:'b',type:'button',text:T('newup')}),ab=h('button',{class:'b g',type:'button',text:T('acs')});
+bk.onclick=goHome;nu.onclick=function(){draft={arrDate:today(),depDate:today(),up:true};form()};ab.onclick=acView;
+tp.appendChild(bk);tp.appendChild(nu);tp.appendChild(ab);app.appendChild(tp);
 var s=h('input',{type:'search',placeholder:T('search'),value:q});s.oninput=function(){q=s.value;paint()};app.appendChild(s);
 var r2=h('div',{class:'row'}),mo=h('input',{type:'month',value:month}),rp=h('button',{class:'b g',type:'button',text:T('report')}),cv=h('button',{class:'b g',type:'button',text:T('csv')});
 mo.onchange=function(){month=mo.value;paint()};
-rp.onclick=function(){var m=month||today().slice(0,7);pr(repDoc(m,monthTrips(m)))};
+rp.onclick=function(){var m=month||today().slice(0,7),a=monthTrips(m);var p=m.split('-');FB.getLogins(+p[0],+p[1]).then(function(l){pr(repDoc(m,a,l))},function(){pr(repDoc(m,a))})};
 cv.onclick=function(){var m=month||today().slice(0,7);csv(m,monthTrips(m))};
 r2.appendChild(mo);r2.appendChild(rp);r2.appendChild(cv);
-if(isMgr()){var tg=h('button',{class:'b g',type:'button',text:showHidden?T('hideh'):T('showh')});tg.onclick=function(){showHidden=!showHidden;list()};r2.appendChild(tg)}
+
 app.appendChild(r2);
 todayBox=h('div',{class:'card small'});app.appendChild(todayBox);
 stat=h('div',{class:'card small'});app.appendChild(stat);
@@ -252,7 +258,7 @@ add('b g',T('pdf'),function(){pr(tripDoc(d))});
 add('b g',T('share'),function(){share(d)});
 add('b g',T('rep'),function(){var n={arrDate:today(),depDate:today(),sig:''};['airfield','flightNo','aircraft','nation','type','company','agent','kg','arrFrom','depTo'].forEach(function(k){n[k]=d[k]||''});draft=n;form()})}
 if(isMgr()){if(d.signed!==false&&!d.hidden)add('b g',T('edit'),function(){draft=Object.assign({},d,{editId:d.id,editSigned:true});form()});
-add('b g',d.hidden?T('unhide'):T('hide'),function(){if(!d.hidden&&!confirm(T('sure')))return;FB.hideTrip(d.id,who,!d.hidden).catch(function(){alert(T('offline'))})})}
+add('b g',T('hide'),function(){if(!confirm(T('sure')))return;FB.deleteTrip(d.id).catch(function(){alert(T('offline'))})})}
 c.appendChild(bt);
 c.onclick=function(){if(!seen[d.id]){seen[d.id]=1;saveSeen();paint()}};
 return c}
@@ -295,7 +301,7 @@ if(!draft.up){app.appendChild(h('div',{class:'sl',text:T('sign')+' *'}));cv=h('c
 var msg=h('p',{class:'err'});app.appendChild(msg);
 var row=h('div',{class:'row'}),sv=h('button',{class:'b',type:'button',text:cap?T('confirm'):(draft.up?T('saveup'):T('save'))}),cn=h('button',{class:'b g',type:'button',text:cap?T('back'):T('cancel')});
 row.appendChild(sv);
-if(!draft.up&&!cap){var hd=h('button',{class:'b g',type:'button',text:T('hand')});hd.onclick=function(){var e=chk(false);if(e){msg.textContent=e;return}draft.cap=true;form()};row.appendChild(hd)}
+
 if(cv){var clr=h('button',{class:'b g',type:'button',text:T('clear')});row.appendChild(clr)}
 row.appendChild(cn);app.appendChild(row);
 if(cv){var dpr=window.devicePixelRatio||1;w=cv.clientWidth;hh=cv.clientHeight;cv.width=w*dpr;cv.height=hh*dpr;
