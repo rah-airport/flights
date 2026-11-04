@@ -145,7 +145,7 @@ var PCSS='<style>@page{size:A4;margin:12mm}body{font-family:Tahoma,Arial,sans-se
 function tripDoc(d){var r=F.map(function(f){return [f[1],d[f[0]],f[2]]}).filter(function(x){return x[1]!==''&&x[1]!=null});
 r.push(['مدة الوقوف',gt(mins(d)),'Ground time']);
 var t=r.map(function(x){return '<tr><td class="l">'+x[0]+'</td><td>'+esc(x[1])+'</td><td class="e">'+x[2]+'</td></tr>'}).join('');
-return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<body><div class="hd"><img src="'+LOGO+'"><div><h1>نموذج ١/ر — بيانات الطائرة</h1><div dir="ltr">Form 1/R — Aircraft data</div></div></div><table>'+t+'</table><table style="margin-top:14px"><tr><td class="l">توقيع قائد الطائرة</td><td class="sig"><img src="'+esc(d.sig)+'"></td><td class="e">Signature of Pilot</td></tr></table><div class="ft">'+esc(d.createdBy||'')+'</div></body></html>'}
+return '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'+PCSS+'<body><div class="hd"><img src="'+LOGO+'"><div><h1>بيانات الطائرة</h1><div dir="ltr">Aircraft data</div></div></div><table>'+t+'</table><table style="margin-top:14px"><tr><td class="l">توقيع قائد الطائرة</td><td class="sig"><img src="'+esc(d.sig)+'"></td><td class="e">Signature of Pilot</td></tr></table><div class="ft">'+esc(d.createdBy||'')+'</div></body></html>'}
 function loginSec(lg){if(!lg)return '';var c={};lg.forEach(function(d){c[d.name]=(c[d.name]||0)+1});
 var sum=Object.keys(c).map(function(k){return esc(k)+' ('+c[k]+')'}).join(' - ');
 var rows=lg.map(function(d){return '<tr><td>'+esc(d.name)+'</td><td class="n">'+esc(ts(d.at))+'</td><td>'+esc(d.device)+'</td></tr>'}).join('');
